@@ -1,4 +1,4 @@
-const CACHE_NAME = "die-in-the-dungeon-v2";
+const CACHE_NAME = "die-in-the-dungeon-v3";
 
 const OFFLINE_ASSETS = [
   "Die in the Dungeon.html",
