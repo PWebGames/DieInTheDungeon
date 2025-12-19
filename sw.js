@@ -1,33 +1,47 @@
-const CACHE_NAME = "die-in-the-dungeon-v1";
+const CACHE_NAME = "die-in-the-dungeon-v2";
 
-// All files required to run fully offline
 const OFFLINE_ASSETS = [
-  "./",
-  "./Die in the Dungeon.html",
-  "./manifest.json",
+  "Die in the Dungeon.html",
+  "manifest.json",
+  
+  "icons/512.png",
+  "icons/192.png",
 
-  "./Die in the Dungeon 1.6.2f [WEB].framework.js",
+  "Die in the Dungeon 1.6.2f [WEB].framework.js",
 
-  "./Build/Die in the Dungeon 1.6.2f [WEB].data.gz",
-  "./Build/Die in the Dungeon 1.6.2f [WEB].framework.js.gz",
-  "./Build/Die in the Dungeon 1.6.2f [WEB].wasm.gz",
+  "Build/Die in the Dungeon 1.6.2f [WEB].data.gz",
+  "Build/Die in the Dungeon 1.6.2f [WEB].framework.js.gz",
+  "Build/Die in the Dungeon 1.6.2f [WEB].wasm.gz",
 
-  "./Die in the Dungeon_files/Die in the Dungeon 1.6.2f [WEB].framework.js.gz",
-  "./Die in the Dungeon_files/Die in the Dungeon 1.6.2f [WEB].loader.js",
-  "./Die in the Dungeon_files/htmlgame.js"
+  "Die in the Dungeon_files/Die in the Dungeon 1.6.2f [WEB].framework.js.gz",
+  "Die in the Dungeon_files/Die in the Dungeon 1.6.2f [WEB].loader.js",
+  "Die in the Dungeon_files/htmlgame.js"
 ];
 
-// Install: cache everything
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(OFFLINE_ASSETS);
-    })
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+
+      for (const asset of OFFLINE_ASSETS) {
+        try {
+          const response = await fetch(asset, { cache: "no-cache" });
+          if (!response.ok) {
+            console.warn("[SW] Skipping (bad status):", asset);
+            continue;
+          }
+          await cache.put(asset, response);
+          console.log("[SW] Cached:", asset);
+        } catch (err) {
+          console.warn("[SW] Failed to cache:", asset, err);
+        }
+      }
+    })()
   );
+
   self.skipWaiting();
 });
 
-// Activate: clean old caches
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -43,33 +57,13 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// Fetch: cache-first (Unity-safe)
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-
-      return fetch(event.request)
-        .then(response => {
-          // Cache new successful requests
-          if (
-            response &&
-            response.status === 200 &&
-            response.type === "basic"
-          ) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, clone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Optional offline fallback (if needed)
-          return caches.match("./Die in the Dungeon.html");
-        });
+      return fetch(event.request);
     })
   );
 });
